@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.schemas.chat import ChatRequest
+from app.core.config import GEMINI_API_KEY, GEMINI_EMBEDDING_MODEL, GEMINI_GENERATION_MODEL
 from app.services.rag_service import answer_question, index_pdf
 from app.services.vector_service import get_collection
 
@@ -48,6 +49,9 @@ def health():
         "status": "healthy",
         "pdf": metadata.get("source", "No PDF indexed"),
         "chunks": collection.count(),
+        "gemini_api_key_configured": bool(GEMINI_API_KEY and GEMINI_API_KEY != "your_api_key"),
+        "gemini_generation_model": GEMINI_GENERATION_MODEL,
+        "gemini_embedding_model": GEMINI_EMBEDDING_MODEL,
     }
 
 
