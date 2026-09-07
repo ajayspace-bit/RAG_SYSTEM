@@ -52,8 +52,24 @@ Retrieved Context:
 User Question:
 {question}
 """
-    response = _client().models.generate_content(
-        model=GEMINI_GENERATION_MODEL,
-        contents=prompt,
-    )
+    try:
+        response = _client().models.generate_content(
+            model=GEMINI_GENERATION_MODEL,
+            contents=prompt,
+        )
+    except Exception as error:
+        status_code = getattr(error, "code", None) or getattr(error, "status_code", None)
+        if status_code == 429:
+            raise RuntimeError(
+                "Gemini API quota exceeded. Wait for the quota reset or enable billing for this project."
+            ) from error
+        if status_code == 404:
+            raise RuntimeError(
+                f"Gemini model '{GEMINI_GENERATION_MODEL}' is unavailable for this API key."
+            ) from error
+        if status_code == 503:
+            raise RuntimeError(
+                "Gemini is temporarily unavailable. Please try again shortly."
+            ) from error
+        raise
     return response.text or "The information is not available in the provided Employee Handbook."
