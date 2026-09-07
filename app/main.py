@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.schemas.chat import ChatRequest
 from app.services.rag_service import answer_question, index_pdf
 from app.services.vector_service import get_collection
+
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -62,6 +66,7 @@ def chat(request: ChatRequest):
     except (RuntimeError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except Exception as error:
+        logger.exception("Chat request failed")
         raise HTTPException(
             status_code=502,
             detail="The AI service could not answer the question. Check the Render logs and Gemini configuration.",
