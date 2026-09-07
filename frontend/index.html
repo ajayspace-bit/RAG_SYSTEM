@@ -51,6 +51,17 @@
     const messages = document.querySelector("#messages");
     const statusMessage = document.querySelector("#index-message");
 
+    async function readResponse(response) {
+      const contentType = response.headers.get("content-type") || "";
+      const result = contentType.includes("application/json")
+        ? await response.json()
+        : { detail: await response.text() };
+      if (!response.ok) {
+        throw new Error(result.detail || `Request failed (${response.status})`);
+      }
+      return result;
+    }
+
     function addMessage(text, role, sources = []) {
       const bubble = document.createElement("div");
       bubble.className = `message-bubble ${role}`;
@@ -107,8 +118,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question, top_k: 3 })
         });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.detail || "Request failed");
+        const result = await readResponse(response);
         messages.lastElementChild.remove();
         addMessage(result.answer, "assistant", result.sources);
       } catch (error) {

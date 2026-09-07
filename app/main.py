@@ -61,3 +61,8 @@ def chat(request: ChatRequest):
         return answer_question(request.question, request.top_k)
     except (RuntimeError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail="The AI service could not answer the question. Check the Render logs and Gemini configuration.",
+        ) from error
