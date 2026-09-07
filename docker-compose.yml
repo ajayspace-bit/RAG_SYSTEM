@@ -1,0 +1,33 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-fastapi
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./assets:/app/assets:ro
+      - ./chroma_db:/app/chroma_db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    image: python:3.11-slim
+    container_name: rag-frontend
+    working_dir: /app/frontend
+    ports:
+      - "5500:5500"
+    volumes:
+      - ./frontend:/app/frontend:ro
+    command: ["python", "-m", "http.server", "5500", "--bind", "0.0.0.0"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

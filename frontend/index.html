@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Employee Handbook AI</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">Knowledge desk / 01</p>
+      <h1>Employee Handbook AI</h1>
+      <p class="subtitle">Ask questions from your Employee Handbook</p>
+    </header>
+
+    <section class="status-panel" aria-labelledby="status-title">
+      <div>
+        <p class="eyebrow">Knowledge base</p>
+        <h2 id="status-title">Current index</h2>
+      </div>
+      <div class="status-grid">
+        <div><span>PDF</span><strong id="pdf-name">Loading...</strong></div>
+        <div><span>Status</span><strong id="index-status">Checking...</strong></div>
+        <div><span>Chunks</span><strong id="chunk-count">-</strong></div>
+      </div>
+      <button id="index-button" class="button" type="button">Index PDF</button>
+      <p id="index-message" class="message" role="status"></p>
+    </section>
+
+    <section class="chat-panel" aria-labelledby="chat-title">
+      <div class="chat-heading">
+        <div>
+          <p class="eyebrow">Ask the handbook</p>
+          <h2 id="chat-title">Assistant</h2>
+        </div>
+        <span class="online-dot">Ready</span>
+      </div>
+      <div id="messages" class="messages" aria-live="polite">
+        <div class="message-bubble assistant">Hello! Ask me anything about the Employee Handbook.</div>
+      </div>
+      <form id="chat-form" class="composer">
+        <label class="sr-only" for="question">Ask a question</label>
+        <input id="question" type="text" placeholder="Ask a question..." autocomplete="off" required>
+        <button class="button" type="submit">Ask</button>
+      </form>
+    </section>
+  </main>
+  <script>
+    const API = "http://127.0.0.1:8000";
+    const messages = document.querySelector("#messages");
+    const statusMessage = document.querySelector("#index-message");
+
+    function addMessage(text, role, sources = []) {
+      const bubble = document.createElement("div");
+      bubble.className = `message-bubble ${role}`;
+      bubble.textContent = text;
+      messages.appendChild(bubble);
+      if (sources.length) {
+        const sourceBox = document.createElement("div");
+        sourceBox.className = "sources";
+        sourceBox.innerHTML = "<strong>Sources</strong>" + sources.map(source =>
+          `<span>${source.source} · page ${source.page} · ${source.chunk_id}</span>`
+        ).join("");
+        messages.appendChild(sourceBox);
+      }
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    async function loadHealth() {
+      try {
+        const response = await fetch(`${API}/health`);
+        const health = await response.json();
+        document.querySelector("#pdf-name").textContent = health.pdf;
+        document.querySelector("#chunk-count").textContent = health.chunks;
+        document.querySelector("#index-status").textContent = health.chunks ? "Indexed" : "Not indexed";
+      } catch (error) {
+        document.querySelector("#index-status").textContent = "Offline";
+        statusMessage.textContent = "Start FastAPI to connect to the knowledge base.";
+      }
+    }
+
+    document.querySelector("#index-button").addEventListener("click", async () => {
+      statusMessage.textContent = "Indexing PDF...";
+      try {
+        const response = await fetch(`${API}/api/index`, { method: "POST" });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || "Indexing failed");
+        statusMessage.textContent = result.message;
+        await loadHealth();
+      } catch (error) {
+        statusMessage.textContent = error.message;
+      }
+    });
+
+    document.querySelector("#chat-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const input = document.querySelector("#question");
+      const question = input.value.trim();
+      if (!question) return;
+      addMessage(question, "user");
+      input.value = "";
+      addMessage("Searching the handbook...", "assistant pending");
+      try {
+        const response = await fetch(`${API}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question, top_k: 3 })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || "Request failed");
+        messages.lastElementChild.remove();
+        addMessage(result.answer, "assistant", result.sources);
+      } catch (error) {
+        messages.lastElementChild.remove();
+        addMessage(error.message, "assistant");
+      }
+    });
+
+    loadHealth();
+  </script>
+</body>
+</html>
